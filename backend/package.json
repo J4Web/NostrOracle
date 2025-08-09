@@ -1,0 +1,16 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend server for the application",
+    "scripts": {
+    "dev": "node app.js"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "nostr-tools": "^2.16.2",
+    "ws": "^8.18.3"
+  }
+}

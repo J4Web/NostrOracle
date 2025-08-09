@@ -8,14 +8,13 @@
 
 **Date:** August 9, 2025
 
-**Author:** Emma, Product Manager
+**Author:** Prakhar Srivastava, Bhavya Jain
 
   
 
 ## Original Requirements
 
   
-
 The NostrOracle project is an AI-powered content authenticity validator for Nostr that:
 
 - Analyzes posts from the Nostr network

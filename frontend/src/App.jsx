@@ -8,6 +8,7 @@ import VerificationForm from './components/VerificationForm.jsx';
 import VerificationResults from './components/VerificationResults.jsx';
 import Notifications from './components/Notifications.jsx';
 import RealTimeActivity from './components/RealTimeActivity.jsx';
+import Logo from './components/Logo.jsx';
 import './App.css';
 
 function App() {
@@ -42,7 +43,22 @@ function App() {
   // Update scores when new verification results come through WebSocket
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'verification_result') {
-      setScores(prev => [lastMessage.data, ...prev.slice(0, 19)]); // Keep only 20 scores
+      setScores(prev => {
+        // Check if this result already exists (prevent duplicates)
+        const existingIndex = prev.findIndex(score =>
+          score.eventId === lastMessage.data.eventId ||
+          (score.content === lastMessage.data.content &&
+           Math.abs(new Date(score.timestamp) - new Date(lastMessage.data.timestamp)) < 5000)
+        );
+
+        if (existingIndex === -1) {
+          // New result, add it
+          return [lastMessage.data, ...prev.slice(0, 19)]; // Keep only 20 scores
+        } else {
+          // Duplicate result, don't add
+          return prev;
+        }
+      });
     }
   }, [lastMessage]);
 
@@ -73,10 +89,12 @@ function App() {
         alignItems: 'center',
         gap: '0.5rem',
         padding: '0.75rem 1.5rem',
-        fontSize: '0.875rem'
+        fontSize: '0.875rem',
+        minWidth: '120px',
+        justifyContent: 'center'
       }}
     >
-      <span>{icon}</span>
+      {icon && <span>{icon}</span>}
       <span>{label}</span>
     </button>
   );
@@ -108,8 +126,16 @@ function App() {
           border: '1px solid var(--gray-200)',
           boxShadow: 'var(--shadow-sm)',
           justifyContent: 'center',
+          alignItems: 'center',
           flexWrap: 'wrap'
         }}>
+          <Logo size={32} />
+          <div style={{
+            width: '1px',
+            height: '32px',
+            background: 'var(--gray-300)',
+            margin: '0 0.5rem'
+          }} />
           <TabButton
             id="verify"
             label="Verify Content"

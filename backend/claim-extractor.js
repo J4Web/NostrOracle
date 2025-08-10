@@ -2,18 +2,34 @@
 import OpenAI from 'openai';
 import { OPENAI_API_KEY } from './config.js';
 
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+let openai = null;
+let hasLoggedApiKeyWarning = false;
+
+// Initialize OpenAI client only if API key is available
+if (OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({
+      apiKey: OPENAI_API_KEY,
+    });
+  } catch (error) {
+    console.warn('Failed to initialize OpenAI client:', error.message);
+  }
+}
 
 /**
  * Extract factual claims from text using OpenAI GPT-4o-mini
  * @param {string} text - The text content to analyze
  * @returns {Promise<Array<string>>} - Array of extracted factual claims
  */
+// Track if we've already logged the API key warning
+
 export async function extractClaimsWithAI(text) {
-  if (!OPENAI_API_KEY || OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY_HERE') {
-    console.warn('OpenAI API key not configured, falling back to regex extraction');
+  if (!openai || !OPENAI_API_KEY || OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY_HERE') {
+    // Only log the warning once to reduce noise
+    if (!hasLoggedApiKeyWarning) {
+      console.warn('OpenAI API key not configured, falling back to regex extraction');
+      hasLoggedApiKeyWarning = true;
+    }
     return extractClaimsRegex(text);
   }
 
@@ -77,14 +93,51 @@ Return only the JSON array, no other text:`;
 }
 
 /**
- * Fallback regex-based claim extraction (original implementation)
+ * Fallback regex-based claim extraction (improved implementation)
  * @param {string} text - The text content to analyze
  * @returns {Array<string>} - Array of extracted claims
  */
 function extractClaimsRegex(text) {
-  // Original naive regex extraction as fallback
-  const matches = text.match(/\b[A-Z][^.!?]*\b(is|was|will be|announced|reported|said)\b[^.!?]*[.!?]/gi);
-  return matches ? matches.map(c => c.trim()) : [];
+  const claims = [];
+
+  // Split text into sentences
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+  // Patterns that indicate factual claims
+  const claimPatterns = [
+    // Basic statements with "is/was/are/were"
+    /\b\w+\s+(is|was|are|were)\s+.+/i,
+    // Statements with "has/have/had"
+    /\b\w+\s+(has|have|had)\s+.+/i,
+    // Statements with "will/would/can/could"
+    /\b\w+\s+(will|would|can|could)\s+.+/i,
+    // Statements with action verbs
+    /\b\w+\s+(announced|reported|said|declared|stated|confirmed|denied)\s+.+/i,
+    // Statements with "the" (often factual)
+    /\bthe\s+\w+\s+(is|was|are|were|has|have|had)\s+.+/i,
+    // Simple subject-verb-object patterns
+    /\b[A-Z]\w*\s+\w+\s+.+/,
+  ];
+
+  for (const sentence of sentences) {
+    // Skip very short sentences
+    if (sentence.length < 10) continue;
+
+    // Check if sentence matches any claim pattern
+    for (const pattern of claimPatterns) {
+      if (pattern.test(sentence)) {
+        claims.push(sentence.trim());
+        break; // Don't add the same sentence multiple times
+      }
+    }
+  }
+
+  // If no patterns matched, treat the whole text as a potential claim
+  if (claims.length === 0 && text.trim().length > 5) {
+    claims.push(text.trim());
+  }
+
+  return claims.slice(0, 5); // Limit to 5 claims max
 }
 
 /**

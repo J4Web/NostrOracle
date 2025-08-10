@@ -1,8 +1,8 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
+  "name": "nostroracle-backend",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Backend server for the application",
+  "description": "NostrOracle Backend - AI-powered content verification API for Nostr",
   "scripts": {
     "dev": "node app.js"
   },

@@ -26,28 +26,82 @@ await initializeDatabase();
 await initializeLightningService();
 initializeWebSocket(server);
 
-// Start Nostr listener with WebSocket broadcasting
+// Rate limiting for post analysis - 1 post every 30 seconds
+let lastProcessedTime = 0;
+const PROCESSING_INTERVAL = 30000; // 30 seconds
+let pendingEvents = [];
+
+// Start Nostr listener with rate-limited processing
 startNostrListener(async (event) => {
-  // Broadcast new Nostr event
+  // Always broadcast new Nostr events (real-time feed)
   broadcastNostrEvent(event);
 
-  // Save the Nostr event to database
+  // Always save events to database
   await saveNostrEvent(event);
 
-  // Process the content and broadcast results
-  const verificationResult = await verifyContent(event.content, event.id);
-  broadcastVerificationResult(verificationResult);
+  // Add to pending queue for analysis
+  pendingEvents.push(event);
 
-  // If a zap was processed, broadcast that too
-  if (verificationResult.metadata?.zap) {
-    broadcastLightningZap({
-      eventId: event.id,
-      amount_sats: verificationResult.metadata.zap.amount_sats,
-      message: verificationResult.metadata.zap.message,
-      score: verificationResult.score
-    });
+  // Process one event every 30 seconds
+  const now = Date.now();
+  if (now - lastProcessedTime >= PROCESSING_INTERVAL && pendingEvents.length > 0) {
+    // Get the most recent event for analysis
+    const eventToProcess = pendingEvents.pop();
+    pendingEvents = []; // Clear the queue
+
+    lastProcessedTime = now;
+
+    console.log(`🔍 Processing event for analysis: ${eventToProcess.id.substring(0, 8)}... (${pendingEvents.length} events skipped)`);
+
+    try {
+      // Process the content and broadcast results
+      const verificationResult = await verifyContent(eventToProcess.content, eventToProcess.id);
+      broadcastVerificationResult(verificationResult);
+
+      // If a zap was processed, broadcast that too
+      if (verificationResult.metadata?.zap) {
+        broadcastLightningZap({
+          eventId: eventToProcess.id,
+          amount_sats: verificationResult.metadata.zap.amount_sats,
+          message: verificationResult.metadata.zap.message,
+          score: verificationResult.score
+        });
+      }
+    } catch (error) {
+      console.error('Error processing event:', error.message);
+    }
   }
 });
+
+// Periodic processor to ensure we process events even during quiet periods
+setInterval(() => {
+  const now = Date.now();
+  if (pendingEvents.length > 0 && now - lastProcessedTime >= PROCESSING_INTERVAL) {
+    const eventToProcess = pendingEvents.pop();
+    pendingEvents = []; // Clear the queue
+
+    lastProcessedTime = now;
+
+    console.log(`⏰ Periodic processing: ${eventToProcess.id.substring(0, 8)}... (${pendingEvents.length} events in queue)`);
+
+    verifyContent(eventToProcess.content, eventToProcess.id)
+      .then(verificationResult => {
+        broadcastVerificationResult(verificationResult);
+
+        if (verificationResult.metadata?.zap) {
+          broadcastLightningZap({
+            eventId: eventToProcess.id,
+            amount_sats: verificationResult.metadata.zap.amount_sats,
+            message: verificationResult.metadata.zap.message,
+            score: verificationResult.score
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error in periodic processing:', error.message);
+      });
+  }
+}, 10000); // Check every 10 seconds
 
 app.get('/', async (_req, res) => {
   const stats = await getSystemStats();
@@ -75,13 +129,22 @@ app.get('/scores', async (_req, res) => {
 });
 
 app.post('/verify', async (req, res) => {
+  console.log('🔍 Manual verification request received:', req.body);
   const { content, eventId } = req.body;
-  const result = await verifyContent(content, eventId);
 
-  // Broadcast the verification result to connected clients
-  broadcastVerificationResult(result);
+  try {
+    console.log(`🔍 Starting verification for: "${content}"`);
+    const result = await verifyContent(content, eventId);
+    console.log(`✅ Verification completed with score: ${result.score}`);
 
-  res.json(result);
+    // Broadcast the verification result to connected clients
+    broadcastVerificationResult(result);
+
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Lightning endpoints

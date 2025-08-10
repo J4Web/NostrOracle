@@ -36,8 +36,13 @@ export async function initializeDatabase() {
  */
 export async function saveNostrEvent(eventData) {
   try {
-    return await prisma.nostrEvent.create({
-      data: {
+    return await prisma.nostrEvent.upsert({
+      where: { eventId: eventData.id },
+      update: {
+        // Update content if event is modified
+        content: eventData.content
+      },
+      create: {
         eventId: eventData.id,
         pubkey: eventData.pubkey,
         content: eventData.content,
@@ -46,7 +51,10 @@ export async function saveNostrEvent(eventData) {
       }
     });
   } catch (error) {
-    console.error('Failed to save Nostr event:', error.message);
+    // Only log non-constraint errors to reduce noise
+    if (!error.message.includes('Unique constraint')) {
+      console.error('Failed to save Nostr event:', error.message);
+    }
     return null;
   }
 }
@@ -56,6 +64,21 @@ export async function saveNostrEvent(eventData) {
  */
 export async function saveVerificationResult(result) {
   try {
+    // Generate eventId if not provided
+    if (!result.eventId) {
+      result.eventId = `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Check if verification result already exists
+    const existing = await prisma.verificationResult.findUnique({
+      where: { eventId: result.eventId }
+    });
+
+    if (existing) {
+      // Return existing result to avoid duplicates
+      return existing;
+    }
+
     const verificationResult = await prisma.verificationResult.create({
       data: {
         eventId: result.eventId,
@@ -95,10 +118,13 @@ export async function saveVerificationResult(result) {
 
     // Update system stats
     await updateSystemStats(result.claims.length, result.score);
-    
+
     return verificationResult;
   } catch (error) {
-    console.error('Failed to save verification result:', error.message);
+    // Only log non-constraint errors to reduce noise
+    if (!error.message.includes('Unique constraint')) {
+      console.error('Failed to save verification result:', error.message);
+    }
     return null;
   }
 }

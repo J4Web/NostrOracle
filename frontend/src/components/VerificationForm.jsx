@@ -254,9 +254,9 @@ const VerificationForm = ({ onVerify, loading }) => {
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--gray-200)'
         }}>
-          <h4 style={{ 
-            fontSize: '0.875rem', 
-            fontWeight: '600', 
+          <h4 style={{
+            fontSize: '0.875rem',
+            fontWeight: '600',
             marginBottom: '0.75rem',
             color: 'var(--text-primary)'
           }}>
@@ -273,6 +273,19 @@ const VerificationForm = ({ onVerify, loading }) => {
             <div>• Cross-references news sources</div>
             <div>• Calculates credibility score</div>
             <div>• Rewards quality content</div>
+          </div>
+
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.75rem',
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--gray-300)',
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)'
+          }}>
+            <strong>Note:</strong> Full functionality requires OpenAI and NewsAPI keys.
+            The system works with basic pattern matching when API keys are not configured.
           </div>
         </div>
       </form>

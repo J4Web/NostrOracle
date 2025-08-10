@@ -1,5 +1,6 @@
 // frontend/src/components/Header.jsx
 import React, { useState, useEffect } from 'react';
+import Logo from './Logo.jsx';
 
 const Header = ({ isConnected, connectionError, stats }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -27,7 +28,9 @@ const Header = ({ isConnected, connectionError, stats }) => {
       <div className="hero-section">
         <div className="hero-content">
           <div className="app-tagline">AI-Powered Content Verification</div>
-          <h1 className="hero-title">NostrOracle</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+            <Logo size={64} showText={true} />
+          </div>
           <p className="hero-description">
             Real-time fact-checking and credibility scoring for the Nostr network.
             Enhancing information integrity through advanced AI and Lightning Network integration.

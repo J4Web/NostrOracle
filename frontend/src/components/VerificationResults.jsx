@@ -26,18 +26,18 @@ const VerificationResults = ({ scores }) => {
   };
 
   const getScoreLabel = (score) => {
-    if (score >= 80) return 'High Credibility';
-    if (score >= 60) return 'Medium Credibility';
-    if (score >= 40) return 'Low Credibility';
+    if (score >= 75) return 'High Credibility';
+    if (score >= 50) return 'Medium Credibility';
+    if (score >= 25) return 'Low Credibility';
     return 'Very Low Credibility';
   };
 
   const getConfidenceIcon = (confidence) => {
     switch (confidence) {
-      case 'high': return '🎯';
-      case 'medium': return '🔍';
-      case 'low': return '⚠️';
-      default: return '❓';
+      case 'high': return '●';
+      case 'medium': return '●';
+      case 'low': return '●';
+      default: return '●';
     }
   };
 
@@ -216,8 +216,8 @@ const VerificationResults = ({ scores }) => {
                           
                           <div className="claim-meta">
                             <span className={`score-badge ${
-                              claim.credibility >= 70 ? 'score-high' : 
-                              claim.credibility >= 40 ? 'score-medium' : 'score-low'
+                              claim.credibility >= 75 ? 'score-high' :
+                              claim.credibility >= 50 ? 'score-medium' : 'score-low'
                             }`}>
                               {claim.credibility}%
                             </span>

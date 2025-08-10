@@ -39,7 +39,13 @@ export async function startNostrListener(onEvent) {
 
     ws.on('open', () => {
       console.log(`Connected to relay: ${url}`);
-      const sub = ['REQ', 'sub1', { kinds: [1], limit: 100 }]; // Reduced limit for testing
+      // Subscribe to recent text notes only, with time filter to reduce volume
+      const since = Math.floor(Date.now() / 1000) - 3600; // Last hour only
+      const sub = ['REQ', 'sub1', {
+        kinds: [1], // Text notes only
+        since: since, // Only recent posts
+        limit: 50 // Reduced limit for better performance
+      }];
       ws.send(JSON.stringify(sub));
     });
 

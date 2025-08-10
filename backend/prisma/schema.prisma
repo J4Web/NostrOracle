@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Nostr events that have been processed
+model NostrEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique // Nostr event ID
+  pubkey      String   // Author's public key
+  content     String   // Original content
+  kind        Int      // Nostr event kind
+  createdAt   DateTime @default(now())
+  processedAt DateTime @default(now())
+
+  // Relationships
+  verificationResult VerificationResult?
+
+  @@map("nostr_events")
+}
+
+// Verification results for processed content
+model VerificationResult {
+  id                String   @id @default(cuid())
+  eventId           String?  @unique // Optional reference to Nostr event
+  content           String   // Content that was verified
+  overallScore      Int      // Overall credibility score (0-100)
+  claimCount        Int      // Number of claims extracted
+  processingMethod  String   // 'ai' or 'regex'
+  processingTime    Int      // Time taken in milliseconds
+  cacheHits         Int      @default(0)
+  verificationErrors Int     @default(0)
+  createdAt         DateTime @default(now())
+
+  // Relationships
+  nostrEvent NostrEvent? @relation(fields: [eventId], references: [eventId])
+  claims     Claim[]
+
+  @@map("verification_results")
+}
+
+// Individual factual claims extracted from content
+model Claim {
+  id                   String   @id @default(cuid())
+  verificationResultId String
+  text                 String   // The extracted claim text
+  credibility          Int      // Credibility score (0-100)
+  confidence           String   // 'low', 'medium', 'high'
+  sourceCount          Int      @default(0)
+  hasError             Boolean  @default(false)
+  errorMessage         String?
+  createdAt            DateTime @default(now())
+
+  // Relationships
+  verificationResult VerificationResult @relation(fields: [verificationResultId], references: [id], onDelete: Cascade)
+  sources           Source[]
+
+  @@map("claims")
+}
+
+// News sources that support or refute claims
+model Source {
+  id       String @id @default(cuid())
+  claimId  String
+  title    String
+  source   String // News source name
+  url      String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@map("sources")
+}
+
+// Cache for claim verification results to avoid re-processing
+model ClaimCache {
+  id          String   @id @default(cuid())
+  claimHash   String   @unique // Hash of the claim text (lowercase)
+  credibility Int      // Cached credibility score
+  confidence  String   // Cached confidence level
+  sourceCount Int      @default(0)
+  lastUsed    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@map("claim_cache")
+}
+
+// System statistics and metrics
+model SystemStats {
+  id               String   @id @default(cuid())
+  postsProcessed   Int      @default(0)
+  claimsVerified   Int      @default(0)
+  totalScore       Int      @default(0)
+  averageScore     Float    @default(0)
+  lastReset        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("system_stats")
+}

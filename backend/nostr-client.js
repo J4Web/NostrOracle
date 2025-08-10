@@ -36,14 +36,37 @@ const connections = [];
 export async function startNostrListener(onEvent) {
   RELAYS.forEach(url => {
     const ws = new WebSocket(url);
+
     ws.on('open', () => {
-      const sub = ['REQ', 'sub1', { kinds: [1], limit: 1000 }];
+      console.log(`Connected to relay: ${url}`);
+      const sub = ['REQ', 'sub1', { kinds: [1], limit: 100 }]; // Reduced limit for testing
       ws.send(JSON.stringify(sub));
     });
+
     ws.on('message', msg => {
-      const data = JSON.parse(msg.toString());
-      if (data[0] === 'EVENT') onEvent(data[2]);
+      try {
+        const data = JSON.parse(msg.toString());
+        if (data[0] === 'EVENT') {
+          onEvent(data[2]);
+        }
+      } catch (error) {
+        console.error('Failed to parse Nostr message:', error.message);
+      }
     });
+
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for ${url}:`, error.message);
+    });
+
+    ws.on('close', () => {
+      console.log(`Disconnected from relay: ${url}`);
+      // Remove from connections array
+      const index = connections.indexOf(ws);
+      if (index > -1) {
+        connections.splice(index, 1);
+      }
+    });
+
     connections.push(ws);
   });
 }
@@ -58,5 +81,15 @@ export function publishScore(eventId, scoreObj) {
     },
     sk
   );
-  connections.forEach(ws => ws.send(JSON.stringify(['EVENT', ev])));
+
+  // Only send to open connections
+  connections.forEach(ws => {
+    if (ws.readyState === ws.OPEN) {
+      try {
+        ws.send(JSON.stringify(['EVENT', ev]));
+      } catch (error) {
+        console.error('Failed to publish score to relay:', error.message);
+      }
+    }
+  });
 }
